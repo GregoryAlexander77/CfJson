@@ -1,5 +1,9 @@
 <cfcomponent displayname="CfJson" hint="Cfc to convert a cf query into a JSON object." name="CfJson">
 	
+	<!---//***********************************************************************************************
+						Notes
+	//************************************************************************************************--->
+	 
     <!--- 
 	convertCfQuery2JsonStruct is used for telerik and other jQuery grids. The output is like so:
     {"data":[{"supplieremail":"elizabeth.novick@medtronic.com ","supplieraddress2":"Jacksonville, FL 32216","supplierid":6536,"suppliertyperef":1,"supplierphone":"(415) 518-9505","supplieraddress1":"6743 Southpoint Drive North","suppliername":"Elizabeth Novick","applicationref":"","date":"November, 20 2014 13:33:35","contractor":"Medtronic (for Visualase Products)","isactive":1}]}  
@@ -73,6 +77,10 @@
 	}
 	
 	--->
+	
+	<!---//***********************************************************************************************
+						Convert a ColdFusion query into JSON
+	//************************************************************************************************--->
     
     <cffunction name="convertCfQuery2JsonStruct" access="public" output="true" hint="convert a ColdFusion query object into to array of structures returned as a json array.">
     	<cfargument name="queryObj" type="query" required="true">
@@ -154,6 +162,10 @@
 		<cfreturn serializeJSON(rs.data) />
 	</cffunction>
 				
+	<!---//***********************************************************************************************
+						Convert a ColdFusion ORM array into JSON
+	//************************************************************************************************--->	
+				
 	<cffunction name="convertHqlQuery2JsonStruct" access="public">
 		<cfargument name="hqlQueryObj" type="array" required="true" hint="Include a variable that contains the HQL data. This should be a HQL query with the mapped column names (ie SELECT new Map (UserId, ...)">
 		<cfargument name="includeDataHandle" type="boolean" required="false" default="true" hint="Some libraries and widgets need a data handle in front of the data.">
@@ -163,9 +175,6 @@
 		<cfargument name="overRideTotal" type="boolean" required="false" default="false">
 		<cfargument name="newTotal" type="any" default="false" hint="On grids that use serverside paging on kendo grids, we need to override the total.">
 		
-		<!--- I revised this function that was orginally found at
-		https://adrianmoreno.com/2012/05/11/arraycollectioncfc-a-custom-json-renderer-for-coldfusion-queries.html
-		--->
 		<!---Create the outer structure--->
 		<cfset json.data = {} />
 
@@ -188,6 +197,10 @@
 		<!--- Return it. --->		
 		<cfreturn serializeJson(json.data)>
 	</cffunction>
+				
+	<!---//***********************************************************************************************
+						JSON Formatting function
+	//************************************************************************************************--->	
 			
 	<!--- This makes a json string more readable. It is used to display the JSON-LD. This was found at http://chads-tech-blog.blogspot.com/2016/10/format-json-string-in-coldfusion.html --->
 	<cffunction name="formatJson" hint="Indents JSON to make it more readable">
@@ -240,6 +253,31 @@
 
 		<cfreturn trim(local.returnString)>
 	</cffunction>
+							
+	<!---//***********************************************************************************************
+						Strip HTML from JSON
+	//************************************************************************************************--->
+							
+	<cfscript>
+		function getStringFromHtml(htmlContent){
+			/** This function is used with the convertCfQuery2JsonStruct function to clean HTML from a string
+			* @hint Parses HTML for strings, and returns the string into a 'clean' xml string.
+			* @arg1 htmlContent 
+			*/
+
+			if ( len(htmlContent) gt 0 ){
+				// Parse the HTML into a valid XML document.
+				xhtml = htmlParse( htmlContent );
+				// Now that we have a proper xhtml document, we will use ColdFusions native xml search method to extract the innner text.
+
+				// Extract the entire string from the notes section and get rid of all other formatting tags.
+				cleanedString = xmlSearch( xhtml, "/html/string()" );
+			} else {
+				cleanedString = '';
+			}
+			return(cleanedString);
+		}
+	</cfscript>
 
 
 </cfcomponent>
