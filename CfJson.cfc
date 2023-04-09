@@ -1,8 +1,8 @@
 <cfcomponent displayname="CfJson" hint="Cfc to convert a cf query into a JSON object." name="CfJson">
 	
-    <!---//***********************************************************************************************
+	<!---//***********************************************************************************************
 						Notes
-    //************************************************************************************************--->
+	//************************************************************************************************--->
 	
     <!--- 
 	convertCfQuery2JsonStruct is used for telerik and other jQuery grids. The output is like so:
@@ -181,7 +181,7 @@
 		</cfif>
         
 		<!--- Return it --->
-		<cfreturn serializeJson(json.data) />
+		<cfreturn serializeJson(json.data,"struct") />
 			
 	</cffunction>
 				
@@ -219,6 +219,80 @@
 				
 		<!--- Return it. --->		
 		<cfreturn serializeJson(json.data)>
+	</cffunction>
+				
+	<cffunction name="convertCfQuery2JsonStructForVirtualGrid" access="public" output="true" hint="convert a ColdFusion query object into to array of structures returned as a json array. This has been specially designed for for Kendo virtual Grids">
+    	<cfargument name="queryObj" type="query" required="true">
+        <cfargument name="contentType" type="string" required="false" default="json">
+        <cfargument name="includeDataHandle" type="boolean" required="false" default="true">
+        <cfargument name="dataHandleName" type="string" required="false" default="data">
+        <cfargument name="includeTotal" type="boolean" required="false" default="true">
+        <!--- Optional arguments to over ride the total which is used when the grids use serverside paging. ---> 
+        <cfargument name="overRideTotal" type="boolean" required="false" default="false">
+        <cfargument name="newTotal" type="any" default="false" hint="On grids that use serverside paging on kendo grids, we need to override the total.">
+        <!--- Optional arguments to enable the function to clean up the HTML in the notes column for the grid. Without these arguments, the html which formats the data will also be displayed in the grid. --->
+        <cfargument name="removeStringHtmlFormatting" type="boolean" required="false" default="true">
+        <!--- Note: if you are trying to clean strings, it will fail if the datatype is anything other than a string. You must also provide the column name that you want to clean. ---> 
+        <cfargument name="columnThatContainsHtmlStrings" type="string" required="false" default="">
+        <cfargument name="convertColumnNamesToLowerCase" type="boolean" default="false" hint="Because Javascript is case sensitive, you may just want to convert everything to lower case.">
+
+		<cfset var rs = {} /> <!--- implicit structure creation --->
+		<cfset rs.results = [] /> <!--- implicit array creation --->
+        <!--- Get the columns. ---> 
+        <cfset rs.columnList = lCase(listSort(queryObj.columnlist, "text" )) />
+        <cfif not convertColumnNamesToLowerCase>
+        	<!--- Get the column label, which is the actual name of the column that is not forced into uppercase as the columnList is. Note: the getMeta() function will return a two column array object with the numeric index along with the value. We need to convert this into a list. --->
+			<cfset realColumnList = arrayToList(queryObj.getMeta().getcolumnlabels())>
+        </cfif>
+        
+		<!--- Loop over the query object and build a structure of arrays --->
+		<cfloop query="queryObj">
+			<cfset rs.temp = {} /><!--- temporary structure --->
+			<cfloop list="#rs.columnList#" index="rs.col">
+            	<!--- To remove any formatting and get the string, we will use a Java object to turn an html object into a valid xml doc, and then use xml processing to get to the underlying string. --->
+                <cfif convertColumnNamesToLowerCase>
+                	<!--- Get the lower cased column name (it was forced into a lower case up above). --->
+                    <cfset columnName = rs.col>
+        		<cfelse>
+                	<!--- Find the index in our realColumnList --->
+        			<cfset realColumnNameIndex = listFindNoCase(realColumnList, rs.col)>
+                    <!--- Get at the value. ---> 
+        			<cfset columnName = listGetAt(realColumnList, realColumnNameIndex)>
+                </cfif>                
+                <cfset columnValue = queryObj[rs.col][queryObj.currentrow]>
+				<cfif removeStringHtmlFormatting>
+                	<cfif columnName eq columnThatContainsHtmlStrings>
+                    	<cfset firstPass = getStringFromHtml(columnValue)>
+                        <!--- We have to do two passes here unfortunately. The first pass returns a string with the em tags, the 2nd pass should clear all formatting. Will revisit this when I have more time.  --->
+                        <cfset columnValue = getStringFromHtml(firstPass)>
+                    </cfif>
+                </cfif>
+				<cfset rs.temp[columnName] = columnValue />
+			</cfloop>
+			<cfset arrayAppend( rs.results, rs.temp ) />
+		</cfloop>
+        
+        <!--- Build the final structure. ---> 
+		<cfset rs.data = {} /> <!--- final structure --->
+        
+		<!--- Include the data handle if needed --->
+		<cfif includeDataHandle>
+			<cfset rs.data[dataHandleName] = rs.results />
+		<cfelse>
+			<cfset rs.data = rs.results />
+		</cfif>
+        
+        <!--- Return the recordcount. This is needed on certain grids to display the total number of records. --->
+        <cfif includeTotal>
+        	<cfif overRideTotal>
+            	<!--- Note: on virtual grids, when you don't include the total (which other than debugging, is never the case, there will be an error here (can't convert 'total' to a number). If debugging, put some random numeric value here.  --->
+            	<cfset rs.data["total"] = newTotal>
+            <cfelse>
+        		<cfset rs.data["total"] = queryObj.recordcount>
+            </cfif>
+        </cfif>
+        
+		<cfreturn serializeJSON(rs.data) />
 	</cffunction>
     
     <cffunction name="convertQueryRow2JavascriptObj" access="public" output="true" hint="Very similiar to convertCfQuery2JsonStruct, but this function convert a row within a query into a simple javascript object without the square brackets. This is used on the client side when populating the query results into an array that can be manipulated using javascript in order to stuff the array object into forms.">
