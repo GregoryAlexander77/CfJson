@@ -1,4 +1,4 @@
-<cfcomponent displayname="CfJson" hint="Cfc to convert a cf query into a JSON object." name="CfJson">
+<cfcomponent displayname="CfJson" hint="Cfc to convert a cf query into a JSON object." name="CfJson" hint="See https://www.gregoryalexander.com/blog/2022/7/12/Convert-a-ColdFusion-Query-into-a-JSON-Object for more information.">
 	
 	<!---//***********************************************************************************************
 						Notes
